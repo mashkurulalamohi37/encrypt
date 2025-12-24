@@ -1,0 +1,10 @@
+# Tor Configuration
+
+# Hidden Service for the App
+HiddenServiceDir /var/lib/tor/hidden_service/
+
+# Expose Mosquitto (MQTT)
+HiddenServicePort 1883 mosquitto:1883
+
+# Expose API (if any)
+# HiddenServicePort 80 api:8080

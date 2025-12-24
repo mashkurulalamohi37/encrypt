@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # 1. Tor Hidden Service
+  #    Exposes MQTT and API via an Onion address.
+  tor:
+    image: alpine:latest
+    container_name: tor_hidden_service
+    command: sh -c "apk add --no-cache tor && tor -f /etc/tor/torrc"
+    volumes:
+      - ./config/torrc:/etc/tor/torrc
+      - ./tor_keys:/var/lib/tor/hidden_service/
+    restart: unless-stopped
+    networks:
+      - privacy_net
+
+  # 2. Mosquitto (MQTT) - For Logic/Signaling
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto_data:/mosquitto/data
+      - ./mosquitto_log:/mosquitto/log
+    restart: unless-stopped
+    networks:
+      - privacy_net
+
+  # 3. PostgreSQL - For Offline Blobs
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_DB: encrypted_blobs
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - privacy_net
+
+  # 4. Coturn - TURN Server for Media Relay (WebRTC)
+  coturn:
+    image: coturn/coturn
+    container_name: coturn
+    network_mode: host # Required for TURN
+    volumes:
+      - ./config/turnserver.conf:/etc/coturn/turnserver.conf
+    restart: unless-stopped
+    # Note: Coturn runs on host network, so it sits alongside Tor, not behind it usually.
+    # To route TURN through Tor is possible but slow.
+
+  # 5. Blob Server (Optional API to interface with Postgres)
+  #    Use a simple Dart/Go/Python container here if needed.
+
+networks:
+  privacy_net:
+    driver: bridge
